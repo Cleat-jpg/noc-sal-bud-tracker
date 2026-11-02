@@ -26,8 +26,8 @@ const run = async (fn, ...args) => {
 const LABEL = { BASIC: "Basic", EVENING: "Evening", RH: "Regular holiday", UH: "US holiday", SH: "Special holiday", OT: "Overtime", "OT/RH": "OT on regular holiday (Guessed Multiplier)", "E/RH": "Evening on regular holiday (Guessed Multiplier)", "E/UH": "Evening on US holiday (Guessed Multiplier)" };
 // Bump MULT_VER whenever you change MULT0 and want EVERY account reset to the new defaults (custom edits are wiped once).
 const MULT_VER = 3; // 3 = multipliers are whole-number percents (125 = 125%)
-const MULT0 = { BASIC: 100, EVENING: 10, RH: 200, UH: 50, SH: 30, OT: 125, "OT/RH": 260, "E/RH": 160, "E/UH": 10 };
-const fresh = () => ({ v: 1, profile: { role: "", rate: 0, per: "day", hpd: 8, cur: "₱", mult: { ...MULT0 }, multOv: {}, multVer: MULT_VER, ded: [] }, period: { start: "", end: "" }, hours: {}, budget: { pool: null, items: [], spends: [], log: [] }, past: [] });
+const MULT0 = { BASIC: 100, EVENING: 10, RH: 200, UH: 50, SH: 30, OT: 125, "OT/RH": 260, "E/RH": 160, "E/UH": 160 };
+const fresh = () => ({ v: 1, profile: { role: "", rate: 0, per: "day", hpd: 8, cur: "₱", mult: { ...MULT0 }, multOv: {}, multVer: MULT_VER, ded: [] }, period: { start: "", end: "" }, hours: {}, budget: { pool: null, start: "", end: "", items: [], spends: [], log: [] }, past: [] });
 function norm(s) {
   const f = fresh(); s = s || {}; const p = s.profile || {};
   // Multipliers follow MULT0 unless the user edited them after the current MULT_VER; a version bump resets everyone.
@@ -76,9 +76,12 @@ function bcalc() {
   const assigned = sum(b.items, (i) => i.amount), spent = sum(b.items, (i) => i.spent);
   return { pool, assigned, left: pool - assigned, spent, toSpend: assigned - spent, net: c.net };
 }
+// The budget can have its own dates; when blank it follows the salary pay period.
+const bEnd = () => (S.budget.start && S.budget.end ? S.budget.end : S.period.end);
+const brange = () => (S.budget.start && S.budget.end ? niceDate(S.budget.start) + " – " + niceDate(S.budget.end) : range());
 function daysLeft() {
-  if (!S.period.end) return 0;
-  return Math.max(1, Math.ceil((new Date(S.period.end + "T23:59:59") - new Date()) / 864e5));
+  if (!bEnd()) return 0;
+  return Math.max(1, Math.ceil((new Date(bEnd() + "T23:59:59") - new Date()) / 864e5));
 }
 
 /* ---------- saving ---------- */
@@ -123,7 +126,7 @@ function authHtml() {
     ${loginMsg ? `<p class="err" role="alert" style="margin:8px 0">${esc(loginMsg)}</p>` : ""}
     <div class="sheet" style="padding:0;max-height:none;border-radius:0">
     <label>Username<input id="au" autocomplete="username" autocapitalize="none" value="${esc(LS.get("pd_user"))}"></label>
-    <label>Password<input id="ap" type="password" autocomplete="${reg ? "new-password" : "current-password"}"></label>
+    <label>Password<span style="position:relative;display:block"><input id="ap" type="password" autocomplete="${reg ? "new-password" : "current-password"}" style="padding-right:68px"><button type="button" id="apeye" aria-label="Show password" aria-pressed="false" style="position:absolute;right:4px;top:calc(50% + 2px);transform:translateY(-50%);border:none;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:10px 12px;cursor:pointer">Show</button></span></label>
     ${reg ? '<label>Invite code (if you were given one)<input id="ai" autocomplete="off"></label>' : ""}</div>
     <button class="btn" id="ago" style="width:100%;margin-top:16px">${reg ? "Create account" : "Sign in"}</button>
     <button class="btn ghost" id="aswap" style="width:100%;margin-top:8px">${reg ? "I already have an account" : "New here? Create an account"}</button></div>`;
@@ -140,6 +143,12 @@ function bindAuth() {
     } catch (e) { loginMsg = e.message; render(); }
   };
   go.onclick = submit;
+  const eye = $("#apeye");
+  eye.onclick = () => {
+    const pw = $("#ap"), show = pw.type === "password";
+    pw.type = show ? "text" : "password"; eye.textContent = show ? "Hide" : "Show";
+    eye.setAttribute("aria-pressed", String(show)); eye.setAttribute("aria-label", show ? "Hide password" : "Show password"); pw.focus();
+  };
   $("#ap").onkeydown = (e) => { if (e.key === "Enter") submit(); };
   $("#aswap").onclick = () => { mode = mode === "login" ? "register" : "login"; loginMsg = ""; render(); };
 }
@@ -187,7 +196,7 @@ function rBudget() {
   const spends = S.budget.spends.slice(0, 6).map((e) => `<div class="row"><div class="body"><div class="t" style="font-size:14px;text-transform:uppercase">${esc(e.desc)}</div><div class="s">${esc(new Date(e.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}${e.auto ? " · auto (item checked)" : ""}</div></div>
     <div class="amt">${m(e.amt)}</div><button class="btn ghost" data-a="bud-undo" data-id="${esc(e.id)}" style="padding:4px 10px;font-size:12px;border-radius:10px">Undo</button></div>`).join("");
   const log = S.budget.log.slice(0, 5).map((l) => `<div class="row" style="font-size:13.5px;padding:8px 0"><div class="body">${esc(l.msg)}</div><span class="muted" style="font-size:12px;white-space:nowrap">${esc(new Date(l.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</span></div>`).join("");
-  return `<div class="card hero"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="margin:0;font-size:20px">Budget · ${esc(range())}</h2>
+  return `<div class="card hero"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="margin:0;font-size:20px">Budget · ${esc(brange())}</h2>
     <button class="btn ghost" data-a="bud-head" style="padding:6px 14px;font-size:13px">Edit</button></div>
     <div class="stats" style="margin-top:0"><div class="stat"><span>Budget</span><b>${m(b.pool)}</b></div><div class="stat"><span>${over ? "Over-assigned" : "Left to assign"}</span><b>${m(Math.abs(b.left))}</b></div></div>
     <div class="meter"><i style="width:${aPct}%"></i></div><div class="sub" style="font-size:12.5px;margin-top:6px">${m(b.assigned)} assigned${b.pool > 0 ? " · " + Math.max(0, (b.left / b.pool) * 100).toFixed(1) + "% unassigned" : ""}</div></div>
@@ -271,8 +280,15 @@ $("#app").addEventListener("click", (e) => {
       save: (v) => { const day = v.day === "" ? null : Math.min(31, Math.max(1, Math.round(Number(v.day)) || 1)); if (d) Object.assign(d, { name: v.name, type: v.type, value: num(v.value), day }); else p.ded.push({ id: uid(), name: v.name, type: v.type, value: num(v.value), day }); commit(); },
       del: d ? () => { p.ded = p.ded.filter((x) => x.id !== id); commit(); } : null });
   }
-  else if (a === "bud-head") openModal({ title: "Budget amount", fields: [{ k: "pool", label: "Amount to budget (leave blank to use take-home)", type: "number", value: S.budget.pool != null ? S.budget.pool : "", ph: m(calc().net) }],
-    save: (v) => { S.budget.pool = v.pool === "" ? null : num(v.pool); commit(); } });
+  else if (a === "bud-head") openModal({ title: "Budget amount & dates", fields: [
+    { k: "pool", label: "Amount to budget (leave blank to use take-home)", type: "number", value: S.budget.pool != null ? S.budget.pool : "", ph: m(calc().net) },
+    { k: "s", label: "Budget start date (blank = salary dates)", type: "date", value: S.budget.start || "" },
+    { k: "e", label: "Budget end date (blank = salary dates)", type: "date", value: S.budget.end || "" }],
+    save: (v) => {
+      if (!!v.s !== !!v.e) throw new Error("Set both dates, or leave both blank.");
+      if (v.s && v.e < v.s) throw new Error("The end date must be after the start date.");
+      S.budget.pool = v.pool === "" ? null : num(v.pool); S.budget.start = v.s; S.budget.end = v.e; commit();
+    } });
   else if (a === "bud-add" || a === "bud-edit") {
     const it = id ? byId(S.budget.items, id) : null;
     openModal({ title: it ? "Edit budget item" : "Add budget item", fields: [{ k: "desc", label: "Name", value: it ? it.desc : "", req: true, ph: "e.g. Food" }, { k: "amt", label: "Amount assigned", type: "number", value: it ? it.amount : "", req: true }],
@@ -319,7 +335,7 @@ $("#app").addEventListener("click", (e) => {
     save: (v) => {
       const c = calc(), b = bcalc();
       S.past.unshift({ start: S.period.start, end: S.period.end, net: c.net, spent: b.spent }); S.past = S.past.slice(0, 24);
-      S.period = { start: v.s, end: v.e }; S.hours = {}; S.budget.pool = null; S.budget.spends = []; S.budget.log = [];
+      S.period = { start: v.s, end: v.e }; S.hours = {}; S.budget.pool = null; S.budget.start = ""; S.budget.end = ""; S.budget.spends = []; S.budget.log = [];
       S.budget.items.forEach((i) => { i.spent = 0; i.done = false; i.autoSpent = 0; }); commit();
     } });
 });
