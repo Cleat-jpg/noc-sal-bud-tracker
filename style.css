@@ -675,3 +675,43 @@ nav button:focus-visible {
 .over-t { color: var(--warn); }
 .sheet select { display: block; width: 100%; margin-top: 4px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); font-size: 16px; }
 header small { display: block; color: var(--mute); font-size: 13px; }
+/* ---------- pay period planner (Salary → Plan days) ---------- */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 10px; }
+.cal-nav b { font-size: 16px; font-weight: 600; }
+.cal-nav .btn { width: 40px; height: 40px; padding: 0; font-size: 20px; line-height: 1; }
+
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal em { font-style: normal; text-align: center; font-size: 12px; font-weight: 600; color: var(--mute); padding: 2px 0 4px; }
+
+.cal-day {
+  aspect-ratio: 1; min-height: 38px; padding: 0;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 14px; font-variant-numeric: tabular-nums; line-height: 1.1; cursor: pointer;
+}
+.cal-day small { font-size: 9px; font-weight: 700; letter-spacing: 0.02em; margin-top: 1px; }
+
+/* Holidays */
+.cal-day.h-RH { border-color: var(--accent); }
+.cal-day.h-RH small { color: var(--accent); }
+.cal-day.h-SH small { color: var(--warn); }
+.cal-day.h-UH small { color: var(--good); }
+
+/* Days inside the pay period, first/last day, days off */
+.cal-day.in { background: var(--soft); border-color: var(--soft); }
+.cal-day.edge { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.cal-day.edge small { color: var(--accent-ink); }
+.cal-day.off { background: transparent; border-style: dashed; border-color: var(--line); color: var(--mute); text-decoration: line-through; }
+.cal-day.edge.off { border-color: var(--accent); color: var(--mute); }
+.cal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cal-shift { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.cal-shift label { margin: 0; font-size: 12.5px; }
+
+.sheet label.cal-check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 14px; color: var(--ink); cursor: pointer; }
+.sheet .cal-check input { display: inline-block; width: 20px; height: 20px; margin: 0; padding: 0; accent-color: var(--accent); flex: 0 0 auto; }
+
+@media (max-width: 380px) {
+  .cal-shift { grid-template-columns: 1fr 1fr; }
+  .cal-day { min-height: 34px; font-size: 13px; }
+}
