@@ -72,9 +72,10 @@ function calc() {
 }
 // Left to assign = pool - allocated. Logging a spend never touches the allocation.
 function bcalc() {
-  const c = calc(), b = S.budget, pool = b.pool != null ? Number(b.pool) : c.net;
+  const c = calc(), b = S.budget, added = sum(b.adds || [], (x) => x.amt);
+  const pool = (b.pool != null ? Number(b.pool) : c.net) + added;
   const assigned = sum(b.items, (i) => i.amount), spent = sum(b.items, (i) => i.spent);
-  return { pool, assigned, left: pool - assigned, spent, toSpend: assigned - spent, net: c.net };
+  return { pool, added, assigned, left: pool - assigned, spent, toSpend: Math.max(0, Math.min(assigned, pool) - spent), net: c.net };
 }
 // The budget can have its own dates; when blank it follows the salary pay period.
 const bEnd = () => (S.budget.start && S.budget.end ? S.budget.end : S.period.end);
@@ -216,6 +217,14 @@ function rBudget() {
   <div class="card"><h2 style="font-size:16px">Recent activity</h2>${log || '<div class="empty" style="padding:14px 0;font-size:13.5px">Edits will show up here.</div>'}</div>`;
 }
 
+function addsCard() {
+  const a = S.budget.adds || [];
+  return `<div class="card"><div class="addbar" style="margin-bottom:6px"><h2 style="margin:0">Added money</h2><button class="btn" data-a="bud-money" style="padding:8px 16px">Add money</button></div>
+    ${a.length ? a.map((x) => `<div class="row"><div class="body"><div class="t" style="font-size:14px">${esc(x.note || "Added money")}</div><div class="s">${esc(new Date(x.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</div></div>
+      <div class="amt plus">+${m(x.amt)}</div><button class="btn ghost" data-a="bud-money-del" data-id="${esc(x.id)}" style="padding:4px 10px;font-size:12px;border-radius:10px">Remove</button></div>`).join("")
+      : '<div class="empty" style="padding:14px 0 4px;font-size:13.5px">Extra money, like an allowance or side income, goes here and adds to your budget.</div>'}</div>`;
+}
+
 /* ---------- account ---------- */
 function rAccount() {
   return `<div class="card"><h2>Account</h2><div class="row"><div class="body"><div class="t">${esc(LS.get("pd_user"))}</div><div class="s">Signed in on this device</div></div></div>
@@ -296,6 +305,16 @@ $("#app").addEventListener("click", (e) => {
       if (v.s && v.e < v.s) throw new Error("The end date must be after the start date.");
       S.budget.pool = v.pool === "" ? null : num(v.pool); S.budget.start = v.s; S.budget.end = v.e; commit();
     } });
+      else if (a === "bud-money") openModal({ title: "Add money", fields: [{ k: "amt", label: "Amount", type: "number", req: true, ph: "e.g. 500" }, { k: "note", label: "Note (optional)", ph: "e.g. Side gig" }],
+    save: (v) => {
+      const x = num(v.amt); if (!x) throw new Error("Enter an amount above 0.");
+      S.budget.adds = S.budget.adds || []; S.budget.adds.unshift({ id: uid(), amt: x, note: v.note, ts: Date.now() });
+      S.budget.adds = S.budget.adds.slice(0, 50); note("Added " + m(x) + " to the budget" + (v.note ? " · " + v.note : "")); commit();
+    } });
+  else if (a === "bud-money-del") {
+    const x = byId(S.budget.adds || [], id); if (!x || !confirm("Remove this added money? Your budget goes down by that amount.")) return;
+    S.budget.adds = S.budget.adds.filter((y) => y.id !== id); note("Removed " + m(x.amt) + " of added money"); commit();
+  }
   else if (a === "bud-add" || a === "bud-edit") {
     const it = id ? byId(S.budget.items, id) : null;
     openModal({ title: it ? "Edit budget item" : "Add budget item", fields: [{ k: "desc", label: "Name", value: it ? it.desc : "", req: true, ph: "e.g. Food" }, { k: "amt", label: "Amount assigned", type: "number", value: it ? it.amount : "", req: true }],
