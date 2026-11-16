@@ -26,7 +26,7 @@ const run = async (fn, ...args) => {
 const LABEL = { BASIC: "Basic", EVENING: "Evening", RH: "Regular holiday", UH: "US holiday", SH: "Special holiday", OT: "Overtime" };
 // Bump MULT_VER whenever you change MULT0 and want EVERY account reset to the new defaults (custom edits are wiped once).
 const MULT_VER = 3; // 3 = multipliers are whole-number percents (125 = 125%)
-const MULT0 = { BASIC: 100, EVENING: 10, RH: 200, UH: 50, SH: 30, OT: 125 };
+const MULT0 = { BASIC: 100, EVENING: 10, RH: 100, UH: 50, SH: 30, OT: 125 };
 const fresh = () => ({ v: 1, profile: { role: "", rate: 0, per: "day", hpd: 8, cur: "₱", mult: { ...MULT0 }, multOv: {}, multVer: MULT_VER, ded: [] }, period: { start: "", end: "" }, hours: {}, budget: { pool: null, start: "", end: "", items: [], spends: [], log: [] }, past: [] });
 function norm(s) {
   const f = fresh(); s = s || {}; const p = s.profile || {};
