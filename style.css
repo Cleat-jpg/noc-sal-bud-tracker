@@ -769,3 +769,11 @@ nav { max-width: 720px; margin: 0 auto; border-radius: 16px 16px 0 0; border-lef
   .cal-shift { grid-template-columns: 1fr 1fr; }
   .cal-shift label:last-child { grid-column: 1 / -1; }
 }
+
+body.has-wp{background:transparent}
+body.has-wp::before{content:"";position:fixed;inset:0;z-index:-2;background:var(--wp) center/cover no-repeat}
+body.has-wp::after{content:"";position:fixed;inset:0;z-index:-1;background:rgba(255,255,255,var(--wp-dim,.35));pointer-events:none}
+.swatches{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.sw{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);position:relative;overflow:hidden;display:inline-block}
+.sw.on{outline:3px solid var(--accent);outline-offset:3px}
+.wp-prev{width:100%;height:110px;object-fit:cover;border-radius:12px;margin:8px 0;display:block}
