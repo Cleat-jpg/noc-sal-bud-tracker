@@ -162,8 +162,8 @@ function rHome() {
   const bars = S.budget.items.filter((i) => i.amount > 0).map((i) => `
     <div class="cat" style="grid-template-columns:1fr auto"><span style="font-weight:600;text-transform:uppercase;font-size:13.5px">${esc(i.desc)}</span><b>${m(i.spent)} <span class="muted" style="font-weight:400">/ ${m(i.amount)}</span></b>
     <div class="bar" style="grid-column:1 / 3"><i style="width:${Math.min(100, (i.spent / i.amount) * 100)}%${i.spent > i.amount ? ";background:var(--warn)" : ""}"></i></div></div>`).join("");
-  const past = S.past.length ? `<div class="card"><h2>Past periods</h2><div class="scroll"><table><tr><th>Period</th><th>Take-home</th><th>Spent</th><th>Kept</th></tr>${S.past.map((p) =>
-    `<tr><td>${esc(p.start ? niceDate(p.start) : "–")}</td><td>${m(p.net)}</td><td>${m(p.spent)}</td><td><b>${m(p.net - p.spent)}</b></td></tr>`).join("")}</table></div></div>` : "";
+  const past = S.past.length ? `<div class="card"><h2>Past periods</h2><div class="scroll"><table><tr><th>Period</th><th>Take-home</th><th>Spent</th><th>Kept</th><th></th></tr>${S.past.map((p, i) =>
+    `<tr><td>${esc(p.start ? niceDate(p.start) : "–")}</td><td>${m(p.net)}</td><td>${m(p.spent)}</td><td><b>${m(p.net - p.spent)}</b></td><td><button class="tag" data-a="past-view" data-i="${i}">View</button></td></tr>`).join("")}</table></div></div>` : "";
   return `${setup}<div class="card hero"><div class="sub" style="margin-top:0">Take-home · ${esc(range())}</div><div class="big">${m(c.net)}</div>
     <div class="stats"><div class="stat"><b>${m(b.spent)}</b><span>Spent</span></div><div class="stat"><b>${m(b.toSpend)}</b><span>Left to spend</span></div></div>${perDay}</div>
     ${bars ? `<div class="card"><h2>Where it’s going</h2>${bars}</div>` : ""}${past}
@@ -338,12 +338,20 @@ $("#app").addEventListener("click", (e) => {
     const it = byId(S.budget.items, sp.item); if (it) { it.spent = Math.max(0, it.spent - sp.amt); if (sp.auto) { it.done = false; it.autoSpent = 0; } }
     S.budget.spends = S.budget.spends.filter((x) => x.id !== id); note("Undid " + m(sp.amt) + " on " + sp.desc); commit();
   }
+  else if (a === "past-view") showPast(Number(el.dataset.i));
   else if (a === "per-new") openModal({ title: "Start a new pay period", fields: [{ k: "s", label: "New start date", type: "date" }, { k: "e", label: "New end date", type: "date" }],
     save: (v) => {
       const c = calc(), b = bcalc();
-      S.past.unshift({ start: S.period.start, end: S.period.end, net: c.net, spent: b.spent }); S.past = S.past.slice(0, 24);
-      S.period = { start: v.s, end: v.e, off: [] }; S.hours = {}; S.budget.pool = null; S.budget.start = ""; S.budget.end = ""; S.budget.spends = []; S.budget.log = [];
-      S.budget.items.forEach((i) => { i.spent = 0; i.done = false; i.autoSpent = 0; }); commit();
+      S.past.unshift({
+        start: S.period.start, end: S.period.end, net: c.net, gross: c.gross, spent: b.spent,
+        rows: c.rows.filter((r) => r.h).map((r) => ({ k: r.k, h: r.h, unit: r.unit, pay: r.pay })),
+        ded: c.ded.filter((d) => d.on).map((d) => ({ name: d.name, amt: d.amt })),
+        items: S.budget.items.map((i) => ({ desc: i.desc, amount: i.amount, spent: i.spent }))
+      });
+      S.past = S.past.slice(0, 6);
+      S.period = { start: v.s, end: v.e, off: [] }; S.hours = {};
+      S.budget = { pool: null, start: "", end: "", items: [], spends: [], log: [] };
+      commit();
     } });
 });
 
@@ -530,6 +538,20 @@ function drawCal() {
     else cal.shift[k] = e.target.value;
     drawCal();
   };
+}
+
+function showPast(i) {
+  const p = S.past[i]; if (!p) return;
+  const mo = $("#modal"), close = () => { mo.classList.remove("open"); mo.innerHTML = ""; };
+  const row = (a, b, c) => `<div class="row" style="padding:8px 0"><div class="body">${esc(a)}${c ? `<div class="s">${esc(c)}</div>` : ""}</div><div class="amt">${b}</div></div>`;
+  const sec = (t, body) => body ? `<div class="muted" style="margin-top:14px;font-size:13px;font-weight:600">${t}</div>${body}` : "";
+  mo.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Past pay period"><h3>${esc(p.start && p.end ? niceDate(p.start) + " – " + niceDate(p.end) : "Past pay period")}</h3>
+    ${row("Take-home", m(p.net), p.gross != null ? "Gross " + m(p.gross) : "")}${row("Spent", m(p.spent))}${row("Kept", "<b>" + m(p.net - p.spent) + "</b>")}
+    ${sec("Salary", (p.rows || []).map((r) => row(LABEL[r.k], m(r.pay), r.h + (r.unit === "day" ? (r.h === 1 ? " day" : " days") : " h"))).join("") + (p.ded || []).map((d) => row(d.name, "−" + m(d.amt))).join(""))}
+    ${sec("Budget plan", (p.items || []).map((it) => row(it.desc, m(it.amount), m(it.spent) + " spent")).join(""))}
+    ${p.items ? "" : '<div class="muted" style="margin-top:12px;font-size:13px">No details were saved for this older period.</div>'}
+    <div class="actions"><button class="btn" id="pv_close">Close</button></div></div>`;
+  mo.classList.add("open"); mo.onclick = (e) => { if (e.target === mo) close(); }; $("#pv_close").onclick = close;
 }
 
 load();
