@@ -358,18 +358,24 @@ $("#app").addEventListener("click", (e) => {
     S.budget.spends = S.budget.spends.filter((x) => x.id !== id); note("Undid " + m(sp.amt) + " on " + sp.desc); commit();
   }
   else if (a === "past-view") showPast(Number(el.dataset.i));
-  else if (a === "per-new") openModal({ title: "Start a new pay period", fields: [{ k: "s", label: "New start date", type: "date" }, { k: "e", label: "New end date", type: "date" }],
+    else if (a === "per-new") openModal({ title: "Start a new pay period", fields: [{ k: "s", label: "New start date", type: "date" }, { k: "e", label: "New end date", type: "date" }],
     save: (v) => {
-      const c = calc(), b = bcalc();
+      const c = calc(), b = bcalc(), bd = S.budget;
+      // Save a full snapshot of this period before wiping it
       S.past.unshift({
         start: S.period.start, end: S.period.end, net: c.net, gross: c.gross, spent: b.spent,
         rows: c.rows.filter((r) => r.h).map((r) => ({ k: r.k, h: r.h, unit: r.unit, pay: r.pay })),
         ded: c.ded.filter((d) => d.on).map((d) => ({ name: d.name, amt: d.amt })),
-        items: S.budget.items.map((i) => ({ desc: i.desc, amount: i.amount, spent: i.spent }))
+        budget: { pool: b.pool, added: b.added, assigned: b.assigned, left: b.left, start: bd.start, end: bd.end },
+        adds: (bd.adds || []).map((x) => ({ amt: x.amt, note: x.note, ts: x.ts })),
+        items: bd.items.map((i) => ({ desc: i.desc, amount: i.amount, spent: i.spent, done: !!i.done })),
+        spends: bd.spends.map((x) => ({ desc: x.desc, amt: x.amt, ts: x.ts, auto: !!x.auto }))
       });
       S.past = S.past.slice(0, 6);
-      S.period = { start: v.s, end: v.e, off: [] }; S.hours = {};
-      S.budget = { pool: null, start: "", end: "", items: [], spends: [], log: [] };
+      // Reset salary (dates, hours, days off) and the whole budget
+      S.period = { start: v.s, end: v.e, off: [] };
+      S.hours = {};
+      S.budget = { pool: null, start: "", end: "", items: [], spends: [], log: [], adds: [] };
       commit();
     } });
 });
@@ -562,15 +568,19 @@ function drawCal() {
 function showPast(i) {
   const p = S.past[i]; if (!p) return;
   const mo = $("#modal"), close = () => { mo.classList.remove("open"); mo.innerHTML = ""; };
+  const when = (ts) => new Date(ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const row = (a, b, c) => `<div class="row" style="padding:8px 0"><div class="body">${esc(a)}${c ? `<div class="s">${esc(c)}</div>` : ""}</div><div class="amt">${b}</div></div>`;
   const sec = (t, body) => body ? `<div class="muted" style="margin-top:14px;font-size:13px;font-weight:600">${t}</div>${body}` : "";
+  const bd = p.budget;
   mo.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="Past pay period"><h3>${esc(p.start && p.end ? niceDate(p.start) + " – " + niceDate(p.end) : "Past pay period")}</h3>
     ${row("Take-home", m(p.net), p.gross != null ? "Gross " + m(p.gross) : "")}${row("Spent", m(p.spent))}${row("Kept", "<b>" + m(p.net - p.spent) + "</b>")}
     ${sec("Salary", (p.rows || []).map((r) => row(LABEL[r.k], m(r.pay), r.h + (r.unit === "day" ? (r.h === 1 ? " day" : " days") : " h"))).join("") + (p.ded || []).map((d) => row(d.name, "−" + m(d.amt))).join(""))}
-    ${sec("Budget plan", (p.items || []).map((it) => row(it.desc, m(it.amount), m(it.spent) + " spent")).join(""))}
+    ${bd ? sec("Budget", row("Budget amount", m(bd.pool), bd.start && bd.end ? niceDate(bd.start) + " – " + niceDate(bd.end) : "") + row("Assigned to items", m(bd.assigned)) + row(bd.left < 0 ? "Over-assigned" : "Left to assign", m(Math.abs(bd.left)))) : ""}
+    ${(p.adds || []).length ? sec("Added money", p.adds.map((x) => row(x.note || "Added money", "+" + m(x.amt), when(x.ts))).join("")) : ""}
+    ${sec("Budget plan", (p.items || []).map((it) => row(it.desc + (it.done ? " ✓" : ""), m(it.amount), m(it.spent) + " spent · " + (it.amount - it.spent < 0 ? m(it.spent - it.amount) + " over" : m(it.amount - it.spent) + " left"))).join(""))}
+    ${(p.spends || []).length ? sec("Spends", p.spends.map((x) => row(x.desc, m(x.amt), when(x.ts) + (x.auto ? " · auto (item checked)" : ""))).join("")) : ""}
     ${p.items ? "" : '<div class="muted" style="margin-top:12px;font-size:13px">No details were saved for this older period.</div>'}
     <div class="actions"><button class="btn" id="pv_close">Close</button></div></div>`;
   mo.classList.add("open"); mo.onclick = (e) => { if (e.target === mo) close(); }; $("#pv_close").onclick = close;
 }
-
 load();
