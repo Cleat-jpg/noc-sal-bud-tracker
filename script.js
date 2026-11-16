@@ -199,7 +199,7 @@ function rBudget() {
     <div class="amt">${m(e.amt)}</div><button class="btn ghost" data-a="bud-undo" data-id="${esc(e.id)}" style="padding:4px 10px;font-size:12px;border-radius:10px">Undo</button></div>`).join("");
   const log = S.budget.log.slice(0, 5).map((l) => `<div class="row" style="font-size:13.5px;padding:8px 0"><div class="body">${esc(l.msg)}</div><span class="muted" style="font-size:12px;white-space:nowrap">${esc(new Date(l.ts).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }))}</span></div>`).join("");
   return `<div class="card hero"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="margin:0;font-size:20px">Budget · ${esc(brange())}</h2>
-    <button class="btn ghost" data-a="bud-head" style="padding:6px 14px;font-size:13px">Edit</button></div>
+    <div style="display:flex;gap:6px"><button class="btn ghost" data-a="bud-money" style="padding:6px 14px;font-size:13px">+ Money</button><button class="btn ghost" data-a="bud-head" style="padding:6px 14px;font-size:13px">Edit</button></div></div>
     <div class="stats" style="margin-top:0"><div class="stat"><span>Budget</span><b>${m(b.pool)}</b></div><div class="stat"><span>${over ? "Over-assigned" : "Left to assign"}</span><b>${m(Math.abs(b.left))}</b></div></div>
     <div class="meter"><i style="width:${aPct}%"></i></div><div class="sub" style="font-size:12.5px;margin-top:6px">${m(b.assigned)} assigned${b.pool > 0 ? " · " + Math.max(0, (b.left / b.pool) * 100).toFixed(1) + "% unassigned" : ""}</div></div>
   <div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><h2 style="margin:0">Money used</h2><span class="muted" style="font-size:12px">This pay period</span></div>
@@ -214,6 +214,7 @@ function rBudget() {
       <div class="nm">${esc(it.desc)}<div class="s muted" style="font-size:12px;font-weight:400;text-transform:none;letter-spacing:0">${m(it.spent)} spent · <span class="${ov ? "over-t" : ""}">${ov ? m(-rem) + " over" : m(rem) + " left"}</span></div></div>
       <b class="amt">${m(it.amount)}</b><button class="tag" data-a="bud-log" data-id="${esc(it.id)}">LOG</button><button class="edit" data-a="bud-edit" data-id="${esc(it.id)}" aria-label="Edit ${esc(it.desc)}" style="border:none;background:none;color:var(--mute);font-size:17px;cursor:pointer">✎</button></div>
       <div class="mini ${ov ? "over" : ""}"><i style="width:${it.amount > 0 ? Math.min(100, (it.spent / it.amount) * 100) : 0}%"></i></div></div>`; }).join("") : '<div class="empty" style="padding:18px 0">Add your first item, like Food or Rent.</div>'}</div>
+  ${addsCard()}
   <div class="card"><h2 style="font-size:16px">Recent activity</h2>${log || '<div class="empty" style="padding:14px 0;font-size:13.5px">Edits will show up here.</div>'}</div>`;
 }
 
