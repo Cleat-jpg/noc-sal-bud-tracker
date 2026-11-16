@@ -715,3 +715,57 @@ header small { display: block; color: var(--mute); font-size: 13px; }
   .cal-shift { grid-template-columns: 1fr 1fr; }
   .cal-day { min-height: 34px; font-size: 13px; }
 }
+
+/* ---------- mobile polish ---------- */
+html { -webkit-text-size-adjust: 100%; }
+html, body { overflow-x: hidden; }
+
+header { max-width: 720px; margin: 0 auto; }
+nav { max-width: 720px; margin: 0 auto; border-radius: 16px 16px 0 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
+
+/* Big numbers never overflow their cards */
+.hero .big { font-size: clamp(28px, 9vw, 38px); overflow-wrap: anywhere; }
+.stat { min-width: 0; }
+.stat b { font-size: clamp(14px, 4.4vw, 17px); overflow-wrap: anywhere; }
+.hero h2 { min-width: 0; overflow-wrap: anywhere; }
+
+/* Budget hero: long date range + buttons wrap instead of squeezing */
+.hero > div[style*="space-between"] { flex-wrap: wrap; gap: 8px 12px; }
+.hero > div[style*="space-between"] > h2 { flex: 1 1 180px; }
+
+/* Card headers with buttons wrap on narrow screens */
+.addbar { flex-wrap: wrap; gap: 8px; }
+.addbar h2 { min-width: 0; }
+
+/* Modals: roomy sheet on phones, centered dialog on larger screens */
+.sheet { max-height: 90vh; max-height: 90dvh; overscroll-behavior: contain; }
+.actions { flex-wrap: wrap; }
+.actions .btn { min-width: 96px; }
+.sheet input[type="time"] { min-width: 0; }
+@media (min-width: 600px) {
+  #modal { align-items: center; }
+  .sheet { border-radius: 22px; }
+}
+
+/* Touch devices: bigger tap targets */
+@media (pointer: coarse) {
+  .tag { padding: 9px 14px; font-size: 12.5px; }
+  .row button.edit, .item .edit { min-width: 40px; min-height: 40px; }
+  .btn { min-height: 40px; }
+}
+
+@media (max-width: 480px) {
+  /* Budget items: name on top, amount + LOG + edit on a second line */
+  .item .top { flex-wrap: wrap; row-gap: 6px; }
+  .item .nm { flex: 1 1 calc(100% - 40px); }
+  .item .top > .amt { margin-left: 36px; margin-right: auto; font-size: 15px; }
+
+  /* Work breakdown fits without sideways scrolling */
+  .table-responsive { font-size: 12.5px; }
+  .table-responsive th, .table-responsive td { padding: 8px 3px; }
+  .table-responsive td:first-child { white-space: normal; }
+
+  /* Planner: shift times side by side, break on its own line */
+  .cal-shift { grid-template-columns: 1fr 1fr; }
+  .cal-shift label:last-child { grid-column: 1 / -1; }
+}
