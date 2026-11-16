@@ -163,8 +163,8 @@ function rHome() {
   const bars = S.budget.items.filter((i) => i.amount > 0).map((i) => `
     <div class="cat" style="grid-template-columns:1fr auto"><span style="font-weight:600;text-transform:uppercase;font-size:13.5px">${esc(i.desc)}</span><b>${m(i.spent)} <span class="muted" style="font-weight:400">/ ${m(i.amount)}</span></b>
     <div class="bar" style="grid-column:1 / 3"><i style="width:${Math.min(100, (i.spent / i.amount) * 100)}%${i.spent > i.amount ? ";background:var(--warn)" : ""}"></i></div></div>`).join("");
-  const past = S.past.length ? `<div class="card"><h2>Past periods</h2><div class="scroll"><table><tr><th>Period</th><th>Take-home</th><th>Spent</th><th>Kept</th><th></th></tr>${S.past.map((p, i) =>
-    `<tr><td>${esc(p.start ? niceDate(p.start) : "–")}</td><td>${m(p.net)}</td><td>${m(p.spent)}</td><td><b>${m(p.net - p.spent)}</b></td><td><button class="tag" data-a="past-view" data-i="${i}">View</button></td></tr>`).join("")}</table></div></div>` : "";
+    const past = S.past.length ? `<div class="card"><h2>Past periods</h2>${S.past.map((p, i) =>
+    `<div class="row"><div class="body"><div class="t">${esc(p.start && p.end ? niceDate(p.start) + " – " + niceDate(p.end) : p.start ? niceDate(p.start) : "–")}</div><div class="s">Take-home ${m(p.net)} · Spent ${m(p.spent)} · Kept <b>${m(p.net - p.spent)}</b></div></div><button class="tag" data-a="past-view" data-i="${i}">View</button></div>`).join("")}</div>` : "";
   return `${setup}<div class="card hero"><div class="sub" style="margin-top:0">Take-home · ${esc(range())}</div><div class="big">${m(c.net)}</div>
     <div class="stats"><div class="stat"><b>${m(b.spent)}</b><span>Spent</span></div><div class="stat"><b>${m(b.toSpend)}</b><span>Left to spend</span></div></div>${perDay}</div>
     ${bars ? `<div class="card"><h2>Where it’s going</h2>${bars}</div>` : ""}${past}
@@ -447,7 +447,7 @@ function dayCounts(shift, type) {
   const add = (k, v) => { if (v) o[k] = (o[k] || 0) + v; };
   if (!type) { add("BASIC", reg / hpd); add("EVENING", inUnit("EVENING", nightReg)); add("OT", ot); return o; }
   add(type, reg / hpd);
-  if ((Number(p.mult[type]) || 0) < 100) add("BASIC", reg / hpd);
+  add("BASIC", reg / hpd); // holiday rows are premiums on top of a normal day
   add("EVENING", inUnit("EVENING", nightReg));
   add("OT", ot);
   return o;
