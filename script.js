@@ -107,6 +107,7 @@ $("#refresh").onclick = () => { S = null; loadError = ""; load(); };
 
 /* ---------- shell ---------- */
 function render() {
+  applyTheme();
   document.querySelectorAll("#nav button").forEach((b) => b.classList.toggle("on", b.dataset.v === view));
   $("#nav").style.display = locked ? "none" : "";
   $("#sub").textContent = locked ? "" : LS.get("pd_user");
@@ -226,12 +227,71 @@ function addsCard() {
       : '<div class="empty" style="padding:14px 0 4px;font-size:13.5px">Extra money, like an allowance or side income, goes here and adds to your budget.</div>'}</div>`;
 }
 
+/* ---------- theme & wallpaper ---------- */
+const THEMES = [["#2563eb","Blue"],["#16a34a","Green"],["#0d9488","Teal"],["#7c3aed","Purple"],["#db2777","Pink"],["#dc2626","Red"],["#ea580c","Orange"],["#111827","Black"]];
+const TH0 = { accent: "", wp: "", dim: 35 };
+const curTheme = () => {
+  let saved = {};
+  if (S) saved = S.profile.theme || {};
+  else { try { saved = JSON.parse(LS.get("pd_theme") || "{}"); } catch (e) {} }
+  return { ...TH0, ...saved };
+};
+const wpSrc = (t) => (t.wp === "file" ? LS.get("pd_wp") : t.wp);
+function applyTheme() {
+  const t = curTheme(), r = document.documentElement, src = wpSrc(t);
+  if (t.accent) r.style.setProperty("--accent", t.accent); else r.style.removeProperty("--accent");
+  document.body.classList.toggle("has-wp", !!src);
+  r.style.setProperty("--wp", src ? 'url("' + src.replace(/"/g, "%22") + '")' : "none");
+  r.style.setProperty("--wp-dim", (Number(t.dim) || 0) / 100);
+  LS.set("pd_theme", JSON.stringify({ accent: t.accent, wp: t.wp, dim: t.dim })); // so it shows on the sign-in screen too
+}
+function setTheme(ch) { S.profile.theme = { ...curTheme(), ...ch }; commit(); }
+function themeCard() {
+  const t = curTheme(), src = wpSrc(t);
+  return `<div class="card"><h2>Theme</h2>
+    <div class="muted" style="font-size:13px">Accent color</div>
+    <div class="swatches">${THEMES.map(([c, n]) => `<button class="sw ${t.accent === c ? "on" : ""}" data-a="th-color" data-c="${c}" style="background:${c}" aria-label="${n}"></button>`).join("")}
+      <label class="sw ${t.accent && !THEMES.some((x) => x[0] === t.accent) ? "on" : ""}" style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" aria-label="Pick any color"><input type="color" id="th_custom" value="${esc(t.accent || "#2563eb")}" style="opacity:0;position:absolute;inset:0;width:100%;height:100%;cursor:pointer"></label></div>
+    <div class="muted" style="font-size:13px;margin-top:12px">Wallpaper</div>
+    ${src ? `<img class="wp-prev" src="${esc(src)}" alt="Current wallpaper">` : '<div class="muted" style="font-size:13px;margin:4px 0">No wallpaper yet. Images and GIFs both work.</div>'}
+    <div class="actions" style="justify-content:flex-start;flex-wrap:wrap">
+      <button class="btn ghost" data-a="th-upload">Upload image or GIF</button>
+      <button class="btn ghost" data-a="th-link">Use a link</button>
+      ${src ? '<button class="btn ghost" data-a="th-wp-off">Remove</button>' : ""}</div>
+    ${src ? `<label style="display:block;margin-top:12px;font-size:13px">Soften wallpaper<input type="range" id="th_dim" min="0" max="90" value="${Number(t.dim) || 0}" style="width:100%"></label>` : ""}
+    ${t.wp === "file" ? '<div class="muted" style="font-size:12px;margin-top:6px">Uploaded wallpapers stay on this device only. Use a link to see it everywhere.</div>' : ""}
+    <button class="btn ghost" data-a="th-reset" style="margin-top:12px;font-size:13px;padding:8px 14px">Reset theme</button>
+    <input type="file" id="th_file" accept="image/*" hidden></div>`;
+}
+$("#app").addEventListener("change", (e) => {
+  const id = e.target.id;
+  if (id === "th_file") {
+    const f = e.target.files[0]; if (!f) return;
+    if (!/^image\//.test(f.type)) return toast("Pick an image or GIF file.");
+    if (f.size > 3.5e6) return toast("That file is over 3.5 MB. Try a smaller one, or use a link.");
+    const rd = new FileReader();
+    rd.onload = () => {
+      try { localStorage.setItem("pd_wp", rd.result); } catch (err) { return toast("Not enough room in this browser. Try a smaller file or a link."); }
+      setTheme({ wp: "file" }); toast("Wallpaper set on this device.");
+    };
+    rd.readAsDataURL(f);
+  } else if (id === "th_custom") setTheme({ accent: e.target.value });
+  else if (id === "th_dim") setTheme({ dim: Number(e.target.value) });
+});
+// Live preview while dragging the color picker or the slider
+$("#app").addEventListener("input", (e) => {
+  if (e.target.id === "th_custom") document.documentElement.style.setProperty("--accent", e.target.value);
+  else if (e.target.id === "th_dim") document.documentElement.style.setProperty("--wp-dim", e.target.value / 100);
+});
+
 /* ---------- account ---------- */
 function rAccount() {
   return `<div class="card"><h2>Account</h2><div class="row"><div class="body"><div class="t">${esc(LS.get("pd_user"))}</div><div class="s">Signed in on this device</div></div></div>
     <div class="actions"><button class="btn ghost" data-a="pw">Change password</button><button class="btn" data-a="signout">Sign out</button></div></div>
+    ${themeCard()}
     <p class="muted" style="text-align:center;font-size:13px">Your data is saved to your account and works on any device.</p>`;
 }
+
 
 /* ---------- modal ---------- */
 function openModal(cfg) {
@@ -267,6 +327,12 @@ $("#app").addEventListener("click", (e) => {
   const a = el.dataset.a, id = el.dataset.id, p = S && S.profile;
   if (a === "go-salary") { view = "salary"; render(); }
   else if (a === "sal-plan") openPlanner();
+  else if (a === "th-color") setTheme({ accent: el.dataset.c });
+  else if (a === "th-upload") $("#th_file").click();
+  else if (a === "th-link") openModal({ title: "Wallpaper link", fields: [{ k: "u", label: "Image or GIF link (https://…)", value: /^https:/i.test(curTheme().wp) ? curTheme().wp : "", req: true, ph: "https://example.com/wallpaper.gif" }],
+    save: (v) => { if (!/^https:\/\//i.test(v.u)) throw new Error("Use a link that starts with https://"); LS.del("pd_wp"); setTheme({ wp: v.u }); } });
+  else if (a === "th-wp-off") { LS.del("pd_wp"); setTheme({ wp: "" }); }
+  else if (a === "th-reset") { LS.del("pd_wp"); S.profile.theme = {}; commit(); }
   else if (a === "signout") { run("logout").catch(() => {}); LS.del("pd_token"); S = null; locked = true; loginMsg = ""; mode = "login"; render(); }
   else if (a === "pw") openModal({ title: "Change password", fields: [{ k: "o", label: "Current password", type: "password", req: true }, { k: "n", label: "New password (8+ characters)", type: "password", req: true }],
     save: async (v) => { await run("changePassword", v.o, v.n); toast("Password changed."); } });
