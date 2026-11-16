@@ -23,10 +23,10 @@ const run = async (fn, ...args) => {
 };
 
 /* ---------- data model ---------- */
-const LABEL = { BASIC: "Basic", EVENING: "Evening", RH: "Regular holiday", UH: "US holiday", SH: "Special holiday", OT: "Overtime", "OT/RH": "OT on regular holiday (Guessed Multiplier)", "E/RH": "Evening on regular holiday (Guessed Multiplier)", "E/UH": "Evening on US holiday (Guessed Multiplier)" };
+const LABEL = { BASIC: "Basic", EVENING: "Evening", RH: "Regular holiday", UH: "US holiday", SH: "Special holiday", OT: "Overtime" };
 // Bump MULT_VER whenever you change MULT0 and want EVERY account reset to the new defaults (custom edits are wiped once).
 const MULT_VER = 3; // 3 = multipliers are whole-number percents (125 = 125%)
-const MULT0 = { BASIC: 100, EVENING: 10, RH: 200, UH: 50, SH: 30, OT: 125, "OT/RH": 260, "E/RH": 160, "E/UH": 160 };
+const MULT0 = { BASIC: 100, EVENING: 10, RH: 200, UH: 50, SH: 30, OT: 125 };
 const fresh = () => ({ v: 1, profile: { role: "", rate: 0, per: "day", hpd: 8, cur: "₱", mult: { ...MULT0 }, multOv: {}, multVer: MULT_VER, ded: [] }, period: { start: "", end: "" }, hours: {}, budget: { pool: null, start: "", end: "", items: [], spends: [], log: [] }, past: [] });
 function norm(s) {
   const f = fresh(); s = s || {}; const p = s.profile || {};
@@ -39,7 +39,7 @@ const m = (n) => { n = Number(n) || 0; return (n < 0 ? "−" : "") + S.profile.c
 const niceDate = (iso) => { if (!iso) return ""; const [y, mo, d] = iso.split("-").map(Number); return new Date(y, mo - 1, d).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }); };
 const range = () => (S.period.start && S.period.end ? niceDate(S.period.start) + " – " + niceDate(S.period.end) : "No dates set");
 
-const HOURLY = new Set(["OT", "OT/RH", "E/RH", "E/UH"]);
+const HOURLY = new Set(["OT"]);
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 const ord = (n) => { const t = ["th", "st", "nd", "rd"], v = n % 100; return n + (t[(v - 20) % 10] || t[v] || t[0]); };
 // Where a "deduct on day X" item lands in the current pay period.
@@ -448,9 +448,8 @@ function dayCounts(shift, type) {
   if (!type) { add("BASIC", reg / hpd); add("EVENING", inUnit("EVENING", nightReg)); add("OT", ot); return o; }
   add(type, reg / hpd);
   if ((Number(p.mult[type]) || 0) < 100) add("BASIC", reg / hpd);
-  const eve = type === "RH" ? "E/RH" : type === "UH" ? "E/UH" : "EVENING";
-  add(eve, inUnit(eve, nightReg));
-  add(type === "RH" ? "OT/RH" : "OT", ot);
+  add("EVENING", inUnit("EVENING", nightReg));
+  add("OT", ot);
   return o;
 }
 
